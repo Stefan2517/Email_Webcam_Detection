@@ -1,12 +1,23 @@
 import cv2
 import time
+import glob
+import os
 from emailing import send_email
+from threading import Thread
 
 video = cv2.VideoCapture(0)
 time.sleep(1)
 
 first_frame = None
 status_list = []
+count = 1
+
+def clean_folder():
+    print("clean_folder function started")
+    images = glob.glob("images/*.png")
+    for image in images:
+        os.remove(image)
+    print("clean_folder function ended")
 
 while True:
     status = 0
@@ -32,21 +43,39 @@ while True:
         rectangle = cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 3)
         if rectangle.any():
             status = 1
+            cv2.imwrite(f"images/{count}.png", frame)
+            count = count + 1
+            all_images = glob.glob("images/*.png")
+            index = int(len(all_images) / 2)
+            image_with_object = all_images[index]
+
 
     status_list.append(status)
     status_list = status_list[-2:]
 
     if status_list[0] == 1 and status_list[1] == 0:
-        send_email()
+        email_thread = Thread(target=send_email, args=(image_with_object, ))
+        email_thread.daemon = True
+        email_thread.start()
+        clean_thread = Thread(target=clean_folder)
+        clean_thread.daemon = True
+
+#        send_email(image_with_object)
+#        clean_folder()
+# Am pus sleep si break pt a functiona programul fara a apasa tasta q
+# Daca nu vrei sa se opreasca scoti break-ul
+
+        time.sleep(10)
+        clean_thread.start()
+        break
+
 
     print(status_list)
 
     cv2.imshow = ("Video", frame)
     key = cv2.waitKey(1)
 
-    if key == ord("q"):
-        break
+#    if key == ord("q"):
+#       break
 
 video.release()
-
-
